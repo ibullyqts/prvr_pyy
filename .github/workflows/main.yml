@@ -18,8 +18,8 @@ jobs:
         with:
           python-version: '3.11'
           
-      - name: Install Dependencies
-        run: pip install selenium selenium-stealth
+      - name: Dependencies
+        run: pip install selenium selenium-stealth undetected-chromedriver
         
       - name: Run Machine ${{ matrix.machine_id }}
         env:
