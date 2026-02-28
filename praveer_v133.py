@@ -1,127 +1,126 @@
-# -*- coding: utf-8 -*-
-import os, time, sys, base64, threading, random
-from concurrent.futures import ThreadPoolExecutor
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
+import asyncio
+import os
+import json
+from datetime import datetime
+from playwright.async_api import async_playwright
+from cfonts import render
 
-# --- ⚡ STEALTH CONFIG ---
-THREADS_PER_MACHINE = 4            
-INTERNAL_DELAY_MS = 100            # Increased to 100ms for safety after lock
-PURGE_INTERVAL_SEC = 900           
-TARGET_NC_NAME = "CHAL BHANGI NC KR~"
-SVG_PATH = "M12.001.504a11.5 11.5 0 1 0 11.5 11.5 11.513 11.513 0 0 0-11.5-11.5Zm-.182 5.955a1.25 1.25 0 1 1-1.25 1.25 1.25 1.25 0 0 1 1.25-1.25Zm1.614 11.318h-2.865a1 1 0 0 1 0-2H11V12.05h-.432a1 1 0 0 1 0-2H12a1 1 0 0 1 1 1v4.727h.433a1 1 0 1 1 0 2Z"
+# --- UI COLORS ---
+CYAN, GREEN, RED, YELLOW, RESET = '\033[36m', '\033[1;32m', '\033[1;31m', '\033[1;33m', '\033[0m'
+CONFIG_FILE = "config.json"
 
-def get_driver():
-    chrome_options = Options()
-    chrome_options.add_argument("--headless=new") 
-    chrome_options.add_argument("--no-sandbox") 
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    ua_list = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1"
-    ]
-    chrome_options.add_argument(f"--user-agent={random.choice(ua_list)}")
-    service = Service(ChromeDriverManager().install())
-    return webdriver.Chrome(service=service, options=chrome_options)
+def banner():
+    os.system("cls" if os.name == "nt" else "clear")
+    print(render("• OVERLORD •", colors=["cyan", "white"]))
+    print(f"{CYAN}Debug-Enabled Guard + Spammer | By Praveer{RESET}\n")
 
-def v133_dispatch(driver, b64_text, delay, target_nc, path_data):
-    driver.execute_script("""
-        window.praveer_active = true;
-        window.msg_count = 0;
-        
-        async function watchNC(targetName, dPath) {
-            while(window.praveer_active) {
-                try {
-                    let currentNC = document.querySelector('header span[role="link"], header div[role="button"] span')?.innerText;
-                    if (currentNC && !currentNC.includes(targetName)) {
-                        await new Promise(r => setTimeout(r, Math.random() * 3000)); 
-                        let allPaths = document.querySelectorAll('path');
-                        let targetBtn = null;
-                        for (let p of allPaths) {
-                            if (p.getAttribute('d') === dPath) {
-                                targetBtn = p.closest('button') || p.closest('div[role="button"]');
-                                break;
-                            }
-                        }
-                        if (targetBtn) {
-                            targetBtn.click();
-                            await new Promise(r => setTimeout(r, 1500));
-                            let nameInput = document.querySelector('input[name="groupChatName"]');
-                            if (nameInput) {
-                                nameInput.focus();
-                                document.execCommand('selectAll', false, null);
-                                document.execCommand('insertText', false, targetName);
-                                nameInput.dispatchEvent(new Event('input', { bubbles: true }));
-                                nameInput.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true}));
-                            }
-                            await new Promise(r => setTimeout(r, 1000));
-                            document.querySelector('div[aria-label="Back"], svg[aria-label="Back"], div[aria-label="Close"]')?.parentElement.click();
-                        }
-                    }
-                } catch(e) {}
-                await new Promise(r => setTimeout(r, 15000 + Math.random() * 5000)); 
-            }
-        }
+def get_settings():
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, "r") as f:
+            saved = json.load(f)
+        print(f"{GREEN}Saved settings found!{RESET}")
+        print(f"Target Name: {saved['target_name']}")
+        choice = input(f"\nUse previous settings? (y/n): ").strip().lower()
+        if choice == 'y': return saved
 
-        async function fire(b64, ms) {
-            const msg = atob(b64);
-            const getBox = () => document.querySelector('div[role="textbox"], textarea, [contenteditable="true"]');
-            while(window.praveer_active) {
-                const box = getBox();
-                if (box) {
-                    box.focus();
-                    document.execCommand('insertText', false, msg + "\\n" + Math.random().toString(36).substring(7));
-                    box.dispatchEvent(new Event('input', { bubbles: true }));
-                    let btn = [...document.querySelectorAll('div[role="button"], button')].find(b => b.innerText === 'Send' || b.textContent === 'Send');
-                    if (btn) btn.click();
-                    else box.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true}));
-                    window.msg_count++;
-                }
-                await new Promise(r => setTimeout(r, ms + Math.floor(Math.random() * 20)));
-            }
-        }
-        watchNC(arguments[2], arguments[3]);
-        fire(arguments[0], arguments[1]);
-    """, b64_text, delay, target_nc, path_data)
+    settings = {
+        "session_id": input("Session ID: ").strip(),
+        "dm_url": input("Group Chat URL: ").strip(),
+        "target_name": input("Target Group Name: ").strip(),
+        "spam_text": input("Text to Spam (1 min): ").strip()
+    }
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(settings, f, indent=4)
+    return settings
 
-def run_agent(agent_id, machine_id, cookie, target, b64_text):
-    time.sleep(agent_id * 20)
+banner()
+cfg = get_settings()
+
+async def spam_task(page):
     while True:
-        driver = None
         try:
-            driver = get_driver()
-            driver.get("https://www.instagram.com/")
-            time.sleep(10)
-            driver.add_cookie({'name': 'sessionid', 'value': cookie.strip(), 'path': '/', 'domain': '.instagram.com'})
-            driver.get(f"https://www.instagram.com/direct/t/{target}/")
-            time.sleep(15)
-            if "login" in driver.current_url: return 
-            v133_dispatch(driver, b64_text, INTERNAL_DELAY_MS, TARGET_NC_NAME, SVG_PATH)
-            start = time.time()
-            while (time.time() - start) < PURGE_INTERVAL_SEC:
-                time.sleep(30)
-                try:
-                    c = driver.execute_script("return window.msg_count;")
-                    print(f"💓 [M{machine_id}-A{agent_id}] Active: {c}")
-                    sys.stdout.flush()
-                except: break
-        except: pass
-        finally:
-            if driver: driver.quit()
-            time.sleep(15)
+            msg_input = page.get_by_role("textbox", name="Message...")
+            if await msg_input.is_visible():
+                await msg_input.fill(cfg['spam_text'])
+                await page.keyboard.press("Enter")
+                print(f"{GREEN}[{datetime.now().strftime('%H:%M:%S')}] Spam Sent.{RESET}")
+            await asyncio.sleep(60)
+        except Exception:
+            await asyncio.sleep(5)
 
-def main():
-    cookie = os.environ.get("INSTA_COOKIE", "").strip()
-    target = os.environ.get("TARGET_THREAD_ID", "").strip()
-    raw_text = os.environ.get("MESSAGES", "").strip()
-    machine_id = os.environ.get("MACHINE_ID", "1")
-    b64_text = base64.b64encode(raw_text.encode('utf-8')).decode('utf-8')
-    with ThreadPoolExecutor(max_workers=THREADS_PER_MACHINE) as executor:
-        for i in range(THREADS_PER_MACHINE):
-            executor.submit(run_agent, i+1, machine_id, cookie, target, b64_text)
-            time.sleep(15)
+async def guard_task(page):
+    last_heartbeat = time.time()
+    while True:
+        try:
+            # Broader selectors to find the title
+            header_selectors = [
+                "header span[role='link']", 
+                "header div[role='button'] span",
+                "h2", # Sometimes the title is an H2 in the info pane
+                "div[role='main'] header span"
+            ]
+            
+            current_name = None
+            for selector in header_selectors:
+                el = page.locator(selector).first
+                if await el.is_visible():
+                    current_name = await el.inner_text()
+                    break
+
+            if current_name:
+                last_heartbeat = time.time() # Reset heartbeat if we see a name
+                if current_name.strip() != cfg['target_name'].strip():
+                    print(f"{RED}[!] CHANGE DETECTED: '{current_name}' -> '{cfg['target_name']}'{RESET}")
+                    
+                    # Open Info
+                    await page.locator('svg[aria-label*="information"], svg[aria-label*="Details"]').first.click()
+                    await asyncio.sleep(1.5)
+                    
+                    # Change Name
+                    change_btn = page.get_by_text("Change name")
+                    await change_btn.wait_for(state="visible", timeout=5000)
+                    await change_btn.click()
+                    
+                    field = page.locator('input[name="groupChatName"]')
+                    await field.fill("")
+                    for char in cfg['target_name']:
+                        await field.type(char, delay=350)
+                    
+                    await page.keyboard.press("Enter")
+                    print(f"{GREEN}[+] Restored Successfully.{RESET}")
+                    await page.get_by_label("Back").first.click()
+            
+            # Debug: Print what the bot currently sees every 10s
+            if time.time() - last_heartbeat > 10:
+                print(f"{YELLOW}[Heartbeat] Current visible name: '{current_name or 'NOT FOUND'}'{RESET}")
+                last_heartbeat = time.time()
+
+            # If not found for 30s, Force Refresh
+            if not current_name and (time.time() - last_heartbeat > 30):
+                print(f"{RED}[!] UI Stale. Force Refreshing...{RESET}")
+                await page.reload()
+                last_heartbeat = time.time()
+
+            await asyncio.sleep(3)
+        except Exception as e:
+            await asyncio.sleep(3)
+
+async def main():
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False)
+        context = await browser.new_context(viewport={'width': 1280, 'height': 720})
+        await context.add_cookies([{"name": "sessionid", "value": cfg['session_id'], "domain": ".instagram.com", "path": "/", "secure": True, "httpOnly": True}])
+        page = await context.new_page()
+        try:
+            await page.goto(cfg['dm_url'], wait_until='networkidle')
+            print(f"{CYAN}Guard Online...{RESET}")
+            await asyncio.gather(guard_task(page), spam_task(page))
+        finally:
+            await browser.close()
 
 if __name__ == "__main__":
-    main()
+    import time
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print(f"\n{RED}Stopped.{RESET}")
