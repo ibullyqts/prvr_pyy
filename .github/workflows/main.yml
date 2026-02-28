@@ -1,4 +1,4 @@
-name: V103 JS-Force Engine
+name: V103 Hyper-Force 8-Agent
 
 on:
   workflow_dispatch:
@@ -7,18 +7,14 @@ jobs:
   strike:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - name: Install Selenium & Stealth
+      - name: Dependencies
         run: pip install selenium selenium-stealth
-
-      - name: Run Strike Engine
+      - name: Strike
         env:
           INSTA_COOKIE: ${{ secrets.INSTA_COOKIE }}
           TARGET_THREAD_ID: ${{ secrets.TARGET_THREAD_ID }}
