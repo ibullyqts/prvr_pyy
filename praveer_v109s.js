@@ -13,40 +13,40 @@ async function sendStrike(agentId) {
     const csrftoken = getCsrf(COOKIE);
     if (!csrftoken) return;
 
-    // 🛡️ Optimized Web-Stable Headers
     const headers = {
-        'authority': 'www.instagram.com',
-        'accept': '*/*',
-        'content-type': 'application/x-www-form-urlencoded',
         'cookie': COOKIE,
         'x-csrftoken': csrftoken,
-        'x-ig-app-id': '936619743392459',
-        'x-instagram-ajax': '1',
+        'x-ig-app-id': '936619743392459', // Standard Web App ID
+        'content-type': 'application/x-www-form-urlencoded',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'x-requested-with': 'XMLHttpRequest',
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        'referer': 'https://www.instagram.com/direct/inbox/'
     };
 
     while (true) {
         try {
             const now = Date.now();
-            const params = new URLSearchParams();
-            params.append('text', MESSAGE_BODY + " " + (Math.random() * 100).toFixed(0));
-            params.append('client_context', now.toString());
+            // 🔥 The 'broadcast' format works for both DMs and Groups
+            const data = new URLSearchParams({
+                'text': MESSAGE_BODY + " " + (Math.random() * 1000).toFixed(0),
+                'client_context': now.toString(),
+                'thread_ids': `[${THREAD_ID}]` // The ID must be inside brackets
+            });
 
-            // 📍 Path: Standard Web Messaging
             await axios.post(
-                `https://www.instagram.com/api/v1/direct_messages/threads/${THREAD_ID}/send_item/`,
-                params.toString(),
+                'https://www.instagram.com/api/v1/direct_messages/threads/broadcast/text/',
+                data.toString(),
                 { headers }
             );
 
-            process.stdout.write(`✅ [Agent ${agentId}] Strike Success\r`);
+            process.stdout.write(`✅ [Agent ${agentId}] Hit\r`);
         } catch (e) {
-            const status = e.response ? e.response.status : 'OFFLINE';
+            const status = e.response ? e.response.status : 'ERR';
             console.log(`\n⚠️ Agent ${agentId} Error: ${status}`);
             
+            // If you still get a 404, it means the THREAD_ID is definitely wrong
             if (status === 404) {
-                console.log("❌ 404: The URL is invalid. Ensure THREAD_ID is ONLY numbers.");
+                console.log("❌ 404 Found: Your THREAD_ID secret is not recognized. Check the URL of your chat!");
                 process.exit(1);
             }
             await new Promise(r => setTimeout(r, 5000));
