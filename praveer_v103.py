@@ -1,94 +1,41 @@
-# -*- coding: utf-8 -*-
-import os, time, random, threading, sys, tempfile, subprocess, shutil
-from concurrent.futures import ThreadPoolExecutor
-from selenium import webdriver
-from selenium_stealth import stealth
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
+name: Phoenix V100 Mega-Matrix
 
-# --- V100 TURBO CONFIG ---
-THREADS = 2 
-TOTAL_DURATION = 25000 
-BURST_SPEED = (0.05, 0.1) # 🔥 Reduced delay for machine-gun speed
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */4 * * *'
 
-def get_driver(agent_id):
-    chrome_options = Options()
-    chrome_options.add_argument("--headless=new") 
-    chrome_options.add_argument("--no-sandbox") 
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-gpu")
+jobs:
+  mega-strike:
+    strategy:
+      matrix:
+        # 🚀 This spawns 10 separate machines at the same time
+        machine_id: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     
-    # 🏎️ CPU Optimization: Desktop mode is actually faster than Mobile Emulation in Headless
-    chrome_options.add_argument("--window-size=1280,720")
-    chrome_options.add_argument("--blink-settings=imagesEnabled=false") # Don't load images
-    
-    temp_dir = os.path.join(tempfile.gettempdir(), f"v100_turbo_{agent_id}")
-    chrome_options.add_argument(f"--user-data-dir={temp_dir}")
+    runs-on: ubuntu-latest
+    timeout-minutes: 350 
 
-    driver = webdriver.Chrome(options=chrome_options)
-    stealth(driver, languages=["en-US"], vendor="Google Inc.", platform="Win32", fix_hairline=True)
-    return driver
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-def turbo_inject(driver, text):
-    """Fires messages via the internal React dispatcher (Zero Latency)."""
-    try:
-        # This JS finds the box, injects text, and triggers the Enter key in 1ms
-        driver.execute_script("""
-            var box = document.querySelector('div[role="textbox"], textarea');
-            if (box) {
-                box.focus();
-                // Direct text injection
-                document.execCommand('insertText', false, arguments[0]);
-                
-                // Immediate Enter Dispatch
-                var enter = new KeyboardEvent('keydown', {
-                    key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true
-                });
-                box.dispatchEvent(enter);
-            }
-        """, text)
-        return True
-    except:
-        return False
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
 
-def run_life_cycle(agent_id, cookie, target, messages):
-    while True:
-        driver = None
-        try:
-            driver = get_driver(agent_id)
-            driver.get("https://www.instagram.com/")
-            
-            # Inject session
-            driver.add_cookie({'name': 'sessionid', 'value': cookie.strip(), 'domain': '.instagram.com'})
-            driver.get(f"https://www.instagram.com/direct/t/{target}/")
-            
-            # Wait for chat load (Staggered)
-            time.sleep(12) 
-            print(f"✅ Agent {agent_id} Armed", flush=True)
+    - name: Install Dependencies
+      run: pip install selenium==4.21.0 selenium-stealth
 
-            start_time = time.time()
-            # 2-Minute Hyper-Burst
-            while (time.time() - start_time) < 120:
-                msg = random.choice(messages) + " " + str(random.randint(100,999))
-                if turbo_inject(driver, msg):
-                    sys.stdout.write("🚀")
-                    sys.stdout.flush()
-                time.sleep(random.uniform(*BURST_SPEED))
-                
-        except Exception as e:
-            print(f"⚠️ Agent {agent_id} glitch, restarting...", flush=True)
-        finally:
-            if driver: driver.quit()
-            time.sleep(2)
-
-def main():
-    cookie = os.environ.get("INSTA_COOKIE", "").strip()
-    target = os.environ.get("TARGET_THREAD_ID", "").strip()
-    messages = os.environ.get("MESSAGES", "V100").split("|")
-    
-    with ThreadPoolExecutor(max_workers=THREADS) as executor:
-        for i in range(THREADS):
-            executor.submit(run_life_cycle, i+1, cookie, target, messages)
-
-if __name__ == "__main__":
-    main()
+    - name: 🔥 Run Machine ${{ matrix.machine_id }}
+      env:
+        INSTA_COOKIE: ${{ secrets.INSTA_COOKIE }}
+        TARGET_THREAD_ID: ${{ secrets.TARGET_THREAD_ID }}
+        MESSAGES: ${{ secrets.MESSAGES }}
+        MACHINE_ID: ${{ matrix.machine_id }}
+      run: |
+        while true; do
+          python -u main.py
+          echo "⚠️ Machine ${{ matrix.machine_id }} Restarting..."
+          sleep 5
+        done
