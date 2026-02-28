@@ -9,20 +9,14 @@ function getCsrf(cookieString) {
     return match ? match[1] : null;
 }
 
-// 🔄 KEEP-ALIVE: Pings the server to maintain the 6-month expiry
-async function maintainSession() {
-    try {
-        const csrftoken = getCsrf(COOKIE);
-        await axios.get('https://www.instagram.com/api/v1/web/accounts/login/ajax/', {
-            headers: { 'cookie': COOKIE, 'x-csrftoken': csrftoken }
-        });
-    } catch (e) { /* silent fail */ }
-}
-setInterval(maintainSession, 1800000); 
-
 async function sendStrike(agentId) {
     const csrftoken = getCsrf(COOKIE);
-    if (!csrftoken) return;
+    if (!csrftoken) {
+        console.log(`❌ Agent ${agentId}: CSRF extraction failed! Check your cookie format.`);
+        return;
+    }
+
+    console.log(`📡 Agent ${agentId}: Initializing Handshake...`);
 
     const headers = {
         'cookie': COOKIE,
@@ -42,15 +36,29 @@ async function sendStrike(agentId) {
                 'thread_ids': `[${THREAD_ID}]`
             });
 
-            await axios.post('https://www.instagram.com/api/v1/direct_messages/threads/broadcast/text/', params.toString(), { headers });
-            process.stdout.write(`✅ [Agent ${agentId}] Active\r`);
+            // ⚡ Added timeout: 10 seconds
+            const response = await axios.post(
+                'https://www.instagram.com/api/v1/direct_messages/threads/broadcast/text/', 
+                params.toString(), 
+                { headers, timeout: 10000 } 
+            );
+
+            // 📢 Force immediate log output
+            console.log(`✅ [Agent ${agentId}] Hit Successful | Status: ${response.status}`);
+            
         } catch (e) {
-            const s = e.response ? e.response.status : 'ERR';
-            if (s === 429) await new Promise(r => setTimeout(r, 60000));
-            else await new Promise(r => setTimeout(r, 5000));
+            const status = e.response ? e.response.status : (e.code === 'ECONNABORTED' ? 'TIMEOUT' : 'NET_ERR');
+            console.log(`⚠️ [Agent ${agentId}] Failed | Status: ${status}`);
+            
+            if (status === 429) {
+                console.log(`💤 [Agent ${agentId}] Rate Limited. Sleeping 60s...`);
+                await new Promise(r => setTimeout(r, 60000));
+            }
         }
-        await new Promise(r => setTimeout(r, 1000 + Math.random() * 500));
+        await new Promise(r => setTimeout(r, 2000)); // Slower initial speed for testing
     }
 }
 
-for (let i = 1; i <= 8; i++) { sendStrike(i); }
+// Start only 1 agent first to verify connection
+console.log("🚀 Starting Titan Engine...");
+sendStrike(1);
