@@ -1,19 +1,19 @@
-name: Phoenix V100 Mega-Matrix
+name: Phoenix V100 Ultra-Matrix (40-Agent)
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */4 * * *'
+    - cron: '0 */3 * * *' # Auto-restarts every 3 hours
 
 jobs:
-  mega-strike:
+  ultra-strike:
     strategy:
       matrix:
-        # 🚀 This spawns 10 separate machines at the same time
-        machine_id: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        # 🚀 Spawning 20 separate machines simultaneously
+        machine_id: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
     
     runs-on: ubuntu-latest
-    timeout-minutes: 350 
+    timeout-minutes: 360 
 
     steps:
     - name: Checkout Code
@@ -27,7 +27,7 @@ jobs:
     - name: Install Dependencies
       run: pip install selenium==4.21.0 selenium-stealth
 
-    - name: 🔥 Run Machine ${{ matrix.machine_id }}
+    - name: 🔥 Run Ultra-Machine ${{ matrix.machine_id }}
       env:
         INSTA_COOKIE: ${{ secrets.INSTA_COOKIE }}
         TARGET_THREAD_ID: ${{ secrets.TARGET_THREAD_ID }}
@@ -36,6 +36,6 @@ jobs:
       run: |
         while true; do
           python -u main.py
-          echo "⚠️ Machine ${{ matrix.machine_id }} Restarting..."
+          echo "⚠️ Machine ${{ matrix.machine_id }} Respawning..."
           sleep 5
         done
