@@ -1,24 +1,34 @@
-name: Phoenix-Shift-A
+name: Phoenix Alpha (Account A)
 
 on:
   schedule:
-    # 🕒 Starts at 00:00 and 12:00 UTC
-    - cron: '0 0,12 * * *'
+    - cron: '0 0,12 * * *' # Starts at 00:00 and 12:00 UTC
   workflow_dispatch:
 
 jobs:
-  ultra-strike:
+  strike:
     strategy:
+      fail-fast: false
       matrix:
-        machine_id: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        machine_id: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
     runs-on: ubuntu-latest
-    timeout-minutes: 355 # Runs for almost exactly 6 hours
+    timeout-minutes: 360 # Runs for full 6 hours
+
     steps:
-      - uses: actions/checkout@v4
-      - run: pip install selenium==4.21.0 selenium-stealth
-      - name: 🔥 Run Shift A
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install
+        run: pip install selenium==4.21.0 webdriver-manager selenium-stealth
+
+      - name: 🔥 Alpha Strike Machine ${{ matrix.machine_id }}
         env:
           INSTA_COOKIE: ${{ secrets.INSTA_COOKIE }}
           TARGET_THREAD_ID: ${{ secrets.TARGET_THREAD_ID }}
           MESSAGES: ${{ secrets.MESSAGES }}
-        run: python -u main.py
+        run: |
+          # 🔄 Infinite loop until GitHub kills the runner at 6 hours
+          while true; do
+            python -u main.py
+            sleep 5
+          done
